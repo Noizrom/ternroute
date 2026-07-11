@@ -1,7 +1,7 @@
 # TernRoute
 
 <p align="center">
-  <strong>Proof-gated, token-efficient task routing for Fireworks AI.</strong>
+  <strong>A proof-gated, token-efficient task router for Fireworks AI — built for AMD Developer Hackathon: ACT II.</strong>
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
 </p>
 
-TernRoute reads a batch of natural-language tasks, determines their category and output constraints locally, and routes each task to an allowed model. It spends no model tokens on routing and writes validated results atomically.
+TernRoute is an entry for **Track 1 of the AMD Developer Hackathon: ACT II**. It reads a batch of natural-language tasks, determines their category and output constraints locally, and routes each task to an allowed Fireworks AI model. It spends no model tokens on routing and writes validated results atomically.
 
 > Solve locally only when correctness is provable; otherwise route once, answer precisely, and stop.
 
