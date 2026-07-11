@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+tests
+examples
+scripts
+PLAN.md
+README.md
+LICENSE
+local-run
+input
+output
+.env

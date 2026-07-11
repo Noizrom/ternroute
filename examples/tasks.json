@@ -1,0 +1,14 @@
+[
+  {
+    "task_id": "factual-1",
+    "prompt": "What is the capital of France? Return only the city name."
+  },
+  {
+    "task_id": "summary-1",
+    "prompt": "Summarize this in exactly one sentence and at most 20 words: A database index is an auxiliary data structure that speeds up lookups, usually at the cost of additional storage and write overhead."
+  },
+  {
+    "task_id": "code-1",
+    "prompt": "Write a Python function named add that returns the sum of two numbers. Return only the code."
+  }
+]
