@@ -1,32 +1,44 @@
 # TernRoute
 
-TernRoute is a proof-gated, token-efficient routing agent for Track 1 of the AMD Developer Hackathon: ACT II.
+<p align="center">
+  <strong>Proof-gated, token-efficient task routing for Fireworks AI.</strong>
+</p>
 
-It reads a batch of natural-language tasks, analyzes their category and output constraints locally, routes each task only to a runtime-allowed Fireworks model, and atomically writes the required results file.
+<p align="center">
+  <a href="https://github.com/Noizrom/ternroute/actions/workflows/test.yml"><img alt="Tests" src="https://github.com/Noizrom/ternroute/actions/workflows/test.yml/badge.svg"></a>
+  <a href="https://github.com/Noizrom/ternroute/pkgs/container/ternroute"><img alt="Container" src="https://img.shields.io/badge/GHCR-ternroute-blue?logo=docker"></a>
+  <a href="https://www.python.org/"><img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
+</p>
+
+TernRoute reads a batch of natural-language tasks, determines their category and output constraints locally, and routes each task to an allowed model. It spends no model tokens on routing and writes validated results atomically.
 
 > Solve locally only when correctness is provable; otherwise route once, answer precisely, and stop.
 
-## Development status
+## Why TernRoute?
 
-The first milestone is implemented:
+- **Token-efficient** — task analysis and model selection happen locally.
+- **Policy-safe** — every request uses an exact model from `ALLOWED_MODELS`.
+- **Reliable** — requests have bounded concurrency, attempts, and deadlines.
+- **Contract-driven** — input and output are strictly validated.
+- **Operationally simple** — the runtime uses only the Python standard library.
+- **Observable** — structured telemetry is emitted as JSON on stderr.
 
-- strict `/input/tasks.json` validation;
-- dynamic `ALLOWED_MODELS` parsing;
-- zero-token task/output analysis;
-- category-aware allowlisted model selection;
-- dependency-free Fireworks Chat Completions client;
-- explicit temperature and output-token ceilings;
-- bounded concurrency, attempts, and task deadlines;
-- mechanical answer validation;
-- atomic `/output/results.json` writing;
-- JSON telemetry on stderr;
-- unit tests and GitHub Actions configuration.
+## How it works
 
-Proof-gated arithmetic and regex-only entity solvers are intentionally deferred until the remote baseline is measured and passing.
+```mermaid
+flowchart LR
+    A[tasks.json] --> B[Validate input]
+    B --> C[Analyze task locally]
+    C --> D[Select allowed model]
+    D --> E[Call Fireworks]
+    E --> F[Validate answers]
+    F --> G[Write results.json atomically]
+```
 
 ## Runtime contract
 
-Input:
+TernRoute accepts a JSON array at `/input/tasks.json`:
 
 ```json
 [
@@ -34,7 +46,7 @@ Input:
 ]
 ```
 
-Output:
+It writes the matching results to `/output/results.json`:
 
 ```json
 [
@@ -42,106 +54,49 @@ Output:
 ]
 ```
 
-Required environment variables:
+The runtime requires:
 
-```text
-FIREWORKS_API_KEY
-FIREWORKS_BASE_URL
-ALLOWED_MODELS
+| Variable | Purpose |
+| --- | --- |
+| `FIREWORKS_API_KEY` | Authenticates requests to Fireworks AI. |
+| `FIREWORKS_BASE_URL` | Sets the compatible Chat Completions endpoint. |
+| `ALLOWED_MODELS` | Comma-separated model IDs that TernRoute may use. |
+
+TernRoute never constructs or hardcodes a model ID; it always selects an exact value from `ALLOWED_MODELS`.
+
+## Quick start
+
+Pull the published image:
+
+```bash
+docker pull ghcr.io/noizrom/ternroute:latest
 ```
 
-`ALLOWED_MODELS` is a comma-separated list. TernRoute always sends an exact value from that list and never constructs or hardcodes a model ID.
-
-## Run locally
-
-Create the input and output directories:
+Prepare a task file and run the app:
 
 ```bash
 mkdir -p local-run/input local-run/output
 cp examples/tasks.json local-run/input/tasks.json
-```
 
-Run the Python entrypoint:
-
-```bash
-TERNROUTE_INPUT_PATH="$PWD/local-run/input/tasks.json" \
-TERNROUTE_OUTPUT_PATH="$PWD/local-run/output/results.json" \
-FIREWORKS_API_KEY="..." \
-FIREWORKS_BASE_URL="..." \
-ALLOWED_MODELS="..." \
-python -m app.main
-```
-
-## Test
-
-The test suite uses only the Python standard library:
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## Docker
-
-```bash
-docker buildx build --platform linux/amd64 -t ternroute:dev --load .
-
-docker run --rm \
-  --platform linux/amd64 \
-  --memory 4g \
-  --cpus 2 \
+docker run --rm --platform linux/amd64 \
   -v "$PWD/local-run/input:/input:ro" \
   -v "$PWD/local-run/output:/output" \
   -e FIREWORKS_API_KEY \
   -e FIREWORKS_BASE_URL \
   -e ALLOWED_MODELS \
-  ternroute:dev
+  ghcr.io/noizrom/ternroute:latest
 ```
 
-The final public image must be versioned and tested by digest; do not submit only a mutable `latest` tag.
+Read the generated answers from `local-run/output/results.json`.
 
-## GitHub Container Registry
+> For local development, tests, image builds, and publishing instructions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Every push to `main`, version tag matching `v*`, or manual dispatch runs the hackathon image workflow. It runs the unit tests first, builds specifically for `linux/amd64`, and publishes to:
+## Project status
 
-```text
-ghcr.io/noizrom/ternroute:latest
-```
+The remote-routing baseline is implemented and tested. Proof-gated local arithmetic and regex-only entity solvers are intentionally deferred until the remote baseline is measured and passing.
 
-The workflow also publishes immutable tags:
-
-- `sha-<short-commit>` for every build;
-- the Git tag, such as `v0.1.0`, for version-tag builds.
-
-After the first successful workflow run, open the package from the repository's **Packages** section and change its visibility to **Public**. GHCR package visibility is separate from repository visibility. The hackathon evaluator must be able to pull the image anonymously.
-
-Verify the public artifact without logging in:
-
-```bash
-docker logout ghcr.io || true
-docker pull ghcr.io/noizrom/ternroute:latest
-docker image inspect ghcr.io/noizrom/ternroute:latest --format '{{.Architecture}}'
-```
-
-Expected architecture:
-
-```text
-amd64
-```
-
-## Architecture
-
-```text
-tasks.json
-    -> strict contract loader
-    -> local task and output analysis
-    -> allowlisted category/model route
-    -> bounded Fireworks request
-    -> mechanical validation
-    -> atomic results.json
-```
-
-See [PLAN.md](PLAN.md) for the complete competitive build strategy.
+TernRoute was created for Track 1 of the **AMD Developer Hackathon: ACT II**. See [PLAN.md](PLAN.md) for the complete competitive build strategy and design rationale.
 
 ## License
 
-MIT
+TernRoute is available under the [MIT License](LICENSE).
