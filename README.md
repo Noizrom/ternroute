@@ -99,6 +99,35 @@ docker run --rm \
 
 The final public image must be versioned and tested by digest; do not submit only a mutable `latest` tag.
 
+## GitHub Container Registry
+
+Every push to `main`, version tag matching `v*`, or manual dispatch runs the hackathon image workflow. It runs the unit tests first, builds specifically for `linux/amd64`, and publishes to:
+
+```text
+ghcr.io/noizrom/ternroute:latest
+```
+
+The workflow also publishes immutable tags:
+
+- `sha-<short-commit>` for every build;
+- the Git tag, such as `v0.1.0`, for version-tag builds.
+
+After the first successful workflow run, open the package from the repository's **Packages** section and change its visibility to **Public**. GHCR package visibility is separate from repository visibility. The hackathon evaluator must be able to pull the image anonymously.
+
+Verify the public artifact without logging in:
+
+```bash
+docker logout ghcr.io || true
+docker pull ghcr.io/noizrom/ternroute:latest
+docker image inspect ghcr.io/noizrom/ternroute:latest --format '{{.Architecture}}'
+```
+
+Expected architecture:
+
+```text
+amd64
+```
+
 ## Architecture
 
 ```text

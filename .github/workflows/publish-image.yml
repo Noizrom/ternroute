@@ -1,10 +1,16 @@
-name: publish image
+name: build and publish hackathon image
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,17 +21,99 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
       - uses: docker/setup-buildx-action@v3
+
+      - name: Normalize GHCR image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=ref,event=tag
+
+      - name: Build smoke-test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: ternroute:ci
+          cache-from: type=gha
+          provenance: false
+          sbom: false
+
+      - name: Verify container contract and limits
+        shell: bash
+        run: |
+          input_dir="$RUNNER_TEMP/ternroute/input"
+          output_dir="$RUNNER_TEMP/ternroute/output"
+          mkdir -p "$input_dir" "$output_dir"
+          printf '[]' > "$input_dir/tasks.json"
+
+          timeout 60s docker run --rm \
+            --platform linux/amd64 \
+            --memory 4g \
+            --cpus 2 \
+            -v "$input_dir:/input:ro" \
+            -v "$output_dir:/output" \
+            -e FIREWORKS_API_KEY=smoke-test \
+            -e FIREWORKS_BASE_URL=https://example.invalid/v1 \
+            -e ALLOWED_MODELS=smoke-test-model \
+            ternroute:ci
+
+          OUTPUT_PATH="$output_dir/results.json" python -c \
+            'import json, os, pathlib; assert json.loads(pathlib.Path(os.environ["OUTPUT_PATH"]).read_text()) == []'
+
+          image_size="$(docker image inspect ternroute:ci --format '{{.Size}}')"
+          test "$image_size" -lt 10737418240
+
       - name: Build and push linux/amd64 image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Verify published linux/amd64 manifest
+        run: docker buildx imagetools inspect "${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}"
+
+      - name: Write image summary
+        shell: bash
+        run: |
+          {
+            echo "### TernRoute hackathon image"
+            echo
+            echo "- Image: \`${{ steps.image.outputs.name }}:latest\`"
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo "- Platform: \`linux/amd64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
