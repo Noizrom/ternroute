@@ -1,0 +1,23 @@
+{
+  "name": "ternroute-remotion-presentation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.tsx",
+    "check": "tsc --noEmit && remotion compositions src/index.tsx",
+    "render": "remotion render src/index.tsx TernRouteModern out/ternroute-modern.mp4 --codec=h264 --crf=18 --concurrency=2"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "5.2.10",
+    "@fontsource/ibm-plex-mono": "5.2.7",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "remotion": "4.0.488"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.488",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  }
+}
