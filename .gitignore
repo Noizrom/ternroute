@@ -8,6 +8,7 @@ htmlcov/
 .env
 local-run/
 output/
-presentation/remotion/out/
+presentation/remotion/out/*
+!presentation/remotion/out/ternroute-modern.mp4
 dist/
 *.zip

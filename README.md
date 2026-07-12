@@ -36,6 +36,18 @@ flowchart LR
     F --> G[Write results.json atomically]
 ```
 
+## Video presentation
+
+<p align="center">
+  <a href="presentation/remotion/out/ternroute-modern.mp4"><img alt="Watch the TernRoute architecture presentation" src="https://img.shields.io/badge/Watch-Architecture_Presentation-37D7FF?style=for-the-badge&labelColor=07111F"></a>
+</p>
+
+The 80-second presentation explains TernRoute's implemented request-classification, allowlist-selection, dispatch, retry, and telemetry flow.
+
+- [Watch the 1080p presentation](presentation/remotion/out/ternroute-modern.mp4)
+- [Read the synchronized transcript](presentation/remotion/TRANSCRIPT.md)
+- [View the Remotion source](presentation/remotion/src/index.tsx)
+
 ## Runtime contract
 
 TernRoute accepts a JSON array at `/input/tasks.json`:
