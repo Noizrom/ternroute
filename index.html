@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="See TernRoute classify, route, and validate an AI task in real time.">
+  <title>TernRoute — Live Router Demo</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="TernRoute home">
+      <span class="brand-mark"></span>
+      <span>TERNROUTE</span>
+    </a>
+    <span class="live-badge"><i></i> LIVE ROUTER</span>
+    <a class="repo-link" href="https://github.com/Noizrom/ternroute">GitHub <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">PROOF-GATED · TOKEN-EFFICIENT</p>
+      <h1>One prompt.<br><span>The right route.</span></h1>
+      <p class="lede">TernRoute classifies locally, chooses only from your allowed models, then validates the answer before it reaches you.</p>
+    </section>
+
+    <section class="demo-shell" aria-labelledby="demo-title">
+      <div class="panel input-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="step">01 / REQUEST</span>
+            <h2 id="demo-title">Send a task</h2>
+          </div>
+          <span class="local-tag">LOCAL FIRST</span>
+        </div>
+
+        <form id="prompt-form">
+          <label for="prompt">Natural-language task</label>
+          <textarea id="prompt" name="prompt" maxlength="4000" required>Summarize why the sky appears blue in exactly two sentences.</textarea>
+          <div class="input-meta">
+            <span id="char-count">67 / 4000</span>
+            <span>No tokens used for routing</span>
+          </div>
+          <button class="run-button" type="submit">
+            <span>Route &amp; run</span>
+            <b aria-hidden="true">→</b>
+          </button>
+        </form>
+
+        <div class="examples" aria-label="Example prompts">
+          <span>TRY</span>
+          <button type="button" data-prompt="Classify the sentiment as positive, negative, or neutral: The update is clean, quick, and exactly what I needed.">Sentiment</button>
+          <button type="button" data-prompt="Write a Python function that returns the nth Fibonacci number. Return code only.">Code</button>
+          <button type="button" data-prompt="What causes ocean tides? Answer in no more than 35 words.">Factual</button>
+        </div>
+      </div>
+
+      <div class="panel trace-panel" id="trace-panel" aria-live="polite">
+        <div class="panel-heading">
+          <div>
+            <span class="step">02 / ROUTER TRACE</span>
+            <h2>Decision path</h2>
+          </div>
+          <span class="status-tag" id="status-tag">READY</span>
+        </div>
+
+        <ol class="trace" aria-label="Routing stages">
+          <li data-stage="classify">
+            <span class="node">1</span>
+            <div><small>CLASSIFY</small><strong id="category-value">Waiting for task</strong></div>
+          </li>
+          <li data-stage="select">
+            <span class="node">2</span>
+            <div><small>SELECT MODEL</small><strong id="model-value">Allowlist only</strong></div>
+          </li>
+          <li data-stage="validate">
+            <span class="node">3</span>
+            <div><small>OUTPUT CONTRACT</small><strong id="contract-value">Parsed locally</strong></div>
+          </li>
+        </ol>
+
+        <div class="answer-card" id="answer-card" hidden>
+          <div class="answer-heading">
+            <span>VALIDATED ANSWER</span>
+            <button id="copy-answer" type="button">Copy</button>
+          </div>
+          <pre id="answer"></pre>
+        </div>
+        <p class="error-message" id="error-message" role="alert" hidden></p>
+      </div>
+    </section>
+
+    <section class="principles" aria-label="TernRoute principles">
+      <article><span>01</span><h3>Classify locally</h3><p>Deterministic rules spend zero model tokens.</p></article>
+      <article><span>02</span><h3>Route precisely</h3><p>Only exact IDs from your runtime allowlist.</p></article>
+      <article><span>03</span><h3>Stop on proof</h3><p>Bounded attempts and mechanical validation.</p></article>
+    </section>
+  </main>
+
+  <footer>
+    <span>TernRoute / AMD Developer Hackathon: ACT II</span>
+    <span>Built with Python · Zero runtime dependencies</span>
+  </footer>
+</body>
+</html>

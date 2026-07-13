@@ -48,6 +48,20 @@ The 80-second presentation explains TernRoute's implemented request-classificati
 - [Read the synchronized transcript](presentation/remotion/TRANSCRIPT.md)
 - [View the Remotion source](presentation/remotion/src/index.tsx)
 
+## Live web demo
+
+The repository root is a Vercel-ready interactive demo backed by the existing Python router.
+Import the repository in Vercel and add these project environment variables:
+
+- `FIREWORKS_API_KEY`
+- `FIREWORKS_BASE_URL`
+- `ALLOWED_MODELS`
+
+Vercel serves `index.html` and deploys `api/route.py` as a Python Function. The API key stays
+server-side; the browser receives only the selected route, parsed output contract, and answer.
+The endpoint includes a small per-instance rate limit for demo traffic. Add a Vercel Firewall
+rate-limit rule before sharing it broadly.
+
 ## Runtime contract
 
 TernRoute accepts a JSON array at `/input/tasks.json`:

@@ -5,7 +5,7 @@ node_modules/
 .pytest_cache/
 .coverage
 htmlcov/
-.env
+.env*
 local-run/
 output/
 presentation/remotion/out/*
