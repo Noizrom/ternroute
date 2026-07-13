@@ -6,6 +6,7 @@ const statusTag = document.querySelector("#status-tag");
 const answerCard = document.querySelector("#answer-card");
 const answer = document.querySelector("#answer");
 const errorMessage = document.querySelector("#error-message");
+const modelBadge = document.querySelector("#model-badge");
 const stages = [...document.querySelectorAll(".trace li")];
 
 const setStatus = (text, state = "") => {
@@ -33,6 +34,8 @@ const describeContract = (spec) => {
 const resetResult = () => {
   answerCard.hidden = true;
   errorMessage.hidden = true;
+  modelBadge.hidden = true;
+  modelBadge.className = "model-badge";
   stages.forEach((stage) => stage.classList.remove("active", "complete"));
   document.querySelector("#category-value").textContent = "Analyzing prompt";
   document.querySelector("#model-value").textContent = "Checking allowlist";
@@ -74,7 +77,25 @@ form.addEventListener("submit", async (event) => {
 
     document.querySelector("#category-value").textContent = data.category.replaceAll("_", " ");
     setStage(1);
-    document.querySelector("#model-value").textContent = data.initial_model;
+    document.querySelector("#model-value").textContent = data.selected_model || data.initial_model;
+
+    if (data.model_status === "unavailable") {
+      modelBadge.textContent = "UNAVAILABLE";
+      modelBadge.classList.add("failed");
+      modelBadge.hidden = false;
+      errorMessage.textContent = `Configured model unavailable: ${data.unavailable_models.join(", ")}. Update ALLOWED_MODELS with a valid model ID.`;
+      errorMessage.hidden = false;
+      document.querySelector("#contract-value").textContent = "Not reached";
+      setStatus("MODEL ERROR", "failed");
+      return;
+    }
+
+    if (data.model_status === "rerouted") {
+      modelBadge.textContent = "REROUTED";
+      modelBadge.classList.add("warning");
+      modelBadge.hidden = false;
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 180));
     setStage(2);
     document.querySelector("#contract-value").textContent = describeContract(data.output_spec);
@@ -86,7 +107,10 @@ form.addEventListener("submit", async (event) => {
     });
     answer.textContent = data.answer;
     answerCard.hidden = false;
-    setStatus("COMPLETE", "done");
+    setStatus(
+      data.model_status === "rerouted" ? "REROUTED" : "COMPLETE",
+      data.model_status === "rerouted" ? "warning" : "done",
+    );
   } catch (error) {
     errorMessage.textContent = error instanceof Error ? error.message : "The request failed.";
     errorMessage.hidden = false;

@@ -9,8 +9,8 @@ from http.server import BaseHTTPRequestHandler
 from app.agent import TernRouteAgent
 from app.config import Config
 from app.contracts import Task
-from app.errors import TernRouteError
-from app.fireworks_client import FireworksClient
+from app.errors import RemoteError, TernRouteError
+from app.fireworks_client import Completion, FireworksClient
 from app.model_profiles import select_model
 from app.task_analysis import analyze_task
 
@@ -21,6 +21,37 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 
 _request_times: dict[str, deque[float]] = {}
 _rate_lock = threading.Lock()
+
+
+class AvailabilityTrackingClient(FireworksClient):
+    def __init__(self, endpoint: str, api_key: str) -> None:
+        super().__init__(endpoint, api_key)
+        self.unavailable_models: list[str] = []
+        self.successful_model: str | None = None
+
+    async def complete(
+        self,
+        *,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int,
+        timeout_seconds: float,
+    ) -> Completion:
+        try:
+            completion = await super().complete(
+                model=model,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=max_tokens,
+                timeout_seconds=timeout_seconds,
+            )
+        except RemoteError as exc:
+            if exc.status_code in {403, 404} and model not in self.unavailable_models:
+                self.unavailable_models.append(model)
+            raise
+        self.successful_model = model
+        return completion
 
 
 def parse_prompt(raw: bytes) -> str:
@@ -58,19 +89,29 @@ async def solve_prompt(prompt: str) -> dict[str, object]:
     config = Config.from_env()
     analysis = analyze_task(prompt)
     initial_model = select_model(config.allowed_models, analysis.category)
-    agent = TernRouteAgent(
-        config=config,
-        client=FireworksClient(config.endpoint, config.api_key),
-    )
+    client = AvailabilityTrackingClient(config.endpoint, config.api_key)
+    agent = TernRouteAgent(config=config, client=client)
     result = await agent.solve(
         Task(task_id="demo", prompt=prompt),
         batch_deadline=time.monotonic() + config.task_budget_seconds,
     )
     spec = analysis.output_spec
+    # ponytail: Result intentionally has no metadata; this fallback text is its stable contract.
+    unavailable = bool(client.unavailable_models)
+    model_status = (
+        "unavailable"
+        if unavailable and result.answer == "Unable to complete the task."
+        else "rerouted"
+        if unavailable
+        else "ok"
+    )
     return {
         "answer": result.answer,
         "category": analysis.category.value,
         "initial_model": initial_model,
+        "selected_model": client.successful_model or initial_model,
+        "model_status": model_status,
+        "unavailable_models": client.unavailable_models,
         "evidence": list(analysis.evidence),
         "output_spec": {
             "format": spec.format,

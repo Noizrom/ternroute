@@ -4,7 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from api import route
+from app.config import Config
 from app.contracts import Result
+from app.errors import RemoteError
+from app.fireworks_client import Completion, FireworksClient
 
 
 class DemoApiTests(unittest.TestCase):
@@ -43,7 +46,57 @@ class DemoApiTests(unittest.TestCase):
         self.assertEqual(payload["answer"], "Paris")
         self.assertEqual(payload["category"], "factual")
         self.assertEqual(payload["initial_model"], config.allowed_models[0])
+        self.assertEqual(payload["model_status"], "ok")
         self.assertNotIn("api_key", payload)
+
+    def test_solve_prompt_reports_unavailable_model(self) -> None:
+        model = "accounts/demo/models/missing"
+        config = Config(
+            api_key="secret",
+            endpoint="https://example.invalid/chat/completions",
+            allowed_models=(model,),
+            max_remote_attempts=1,
+            task_budget_seconds=2,
+            request_read_budget_seconds=1,
+        )
+        with (
+            patch.object(route.Config, "from_env", return_value=config),
+            patch.object(
+                FireworksClient,
+                "complete",
+                new=AsyncMock(side_effect=RemoteError("missing", status_code=404)),
+            ),
+        ):
+            payload = asyncio.run(route.solve_prompt("What is the capital of France?"))
+
+        self.assertEqual(payload["model_status"], "unavailable")
+        self.assertEqual(payload["unavailable_models"], [model])
+        self.assertEqual(payload["answer"], "Unable to complete the task.")
+
+    def test_solve_prompt_reports_successful_reroute(self) -> None:
+        models = ("minimax-general", "gemma-compact")
+        config = Config(
+            api_key="secret",
+            endpoint="https://example.invalid/chat/completions",
+            allowed_models=models,
+            max_remote_attempts=2,
+            task_budget_seconds=2,
+            request_read_budget_seconds=1,
+        )
+        responses = [
+            RemoteError("missing", status_code=404),
+            Completion("Paris", 5, 1, 6, "stop"),
+        ]
+        with (
+            patch.object(route.Config, "from_env", return_value=config),
+            patch.object(FireworksClient, "complete", new=AsyncMock(side_effect=responses)),
+        ):
+            payload = asyncio.run(route.solve_prompt("What is the capital of France?"))
+
+        self.assertEqual(payload["model_status"], "rerouted")
+        self.assertEqual(payload["unavailable_models"], [models[0]])
+        self.assertEqual(payload["selected_model"], models[1])
+        self.assertEqual(payload["answer"], "Paris")
 
 
 if __name__ == "__main__":
